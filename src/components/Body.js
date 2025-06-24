@@ -1,9 +1,10 @@
 import resList from "../utils/mockData";
-import ResCard from "./ResCard";
-import {useState,useEffect} from "react";
+import ResCard, { withOpenLabel,withCloseLabel } from "./ResCard";
+import {useState,useEffect, useContext} from "react";
 import Shimmer from "./Shimmer";
 import { Link } from "react-router";
 import useOnlineStatus from "../utils/useOnlineStatus";
+import UserContext from "../utils/UserContext";
 
 
 export const Body = () => {
@@ -11,6 +12,10 @@ export const Body = () => {
     const [listOfItems, setListOfItems] = useState([]);
 
     const [searchText, setSearchText] = useState("");
+    const ResCardOpened = withOpenLabel(ResCard);
+    const ResCardClosed = withCloseLabel(ResCard);
+
+    const {loggedInUser, setUserName} = useContext(UserContext);
 
     useEffect(() => {
         // console.log("useEffect called()");
@@ -20,10 +25,23 @@ export const Body = () => {
     const fetchData = async () => {
         const data = await fetch("https://www.swiggy.com/dapi/restaurants/list/v5?lat=21.99740&lng=79.00110&is-seo-homepage-enabled=true&page_type=DESKTOP_WEB_LISTING");
         const jsonData = await data.json();
-        console.log(jsonData);
-        setListOfRestaurants(jsonData?.data?.cards[4]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
-        setListOfItems(jsonData?.data?.cards[4]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
-        console.log(jsonData.data.cards[4]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
+
+        // Find the card that contains restaurants
+        const restaurantCard = jsonData?.data?.cards.find(
+            (card) =>
+            card?.card?.card?.gridElements?.infoWithStyle?.restaurants
+        );
+
+        const restaurants = restaurantCard?.card?.card?.gridElements?.infoWithStyle?.restaurants || [];
+        // console.log(jsonData);
+        // setListOfRestaurants(jsonData?.data?.cards[2]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
+        // setListOfItems(jsonData?.data?.cards[2]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
+        // console.log(jsonData.data.cards[2]?.card?.card?.gridElements?.infoWithStyle?.restaurants);
+
+        setListOfRestaurants(restaurants);
+        setListOfItems(restaurants);
+        // console.log(restaurants);
+        
     }
 
     // if(listOfRestaurants.length === 0){
@@ -39,30 +57,39 @@ export const Body = () => {
 
     return listOfRestaurants.length === 0 ? <Shimmer /> : (
         <div className="body">
-            <div className="filter-bar">
+            <div className="flex m-4">
                 <div className="search-bar">
-                    <input type="text" name="search" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
-                    <button className="search-btn" onClick={() => {
-                        console.log(searchText)
+                    <input data-testid="searchInput" type="text" className="border border-solid border-black shadow mx-2 rounded-lg" name="search" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                    <button className="bg-green-400 mx-2 px-2 py-1 font-bold rounded-lg" onClick={() => {
+                        // console.log(searchText)
                         // setListOfRestaurants(listOfItems);
                         const filterItems = listOfRestaurants.filter((restaurant) => restaurant.info.name.toLowerCase().includes(searchText.toLowerCase()));
                         setListOfItems(filterItems);    
-                        console.log(filterItems);
+                        // console.log(filterItems);
                         // console.log(listOfRestaurants);
                     }}>Search</button>
                 </div>
-                <button className="filter-btn" onClick={() => {
-                    const filteredItems = listOfRestaurants.filter((restaurant) => restaurant.info.avgRating > 4)
+                <button className="bg-gray-400 mx-2 px-2 py-1 font-bold rounded-lg" onClick={() => {
+                    const filteredItems = listOfRestaurants.filter((restaurant) => restaurant.info.avgRating > 4.3)
                     setListOfItems(filteredItems);
-                    console.log(filteredItems);
+                    // console.log(filteredItems);
                 }}>
                     Top Rated Restaurants
                 </button>
+                <div className="mx-4">
+                    <label>User: </label>
+                    <input type="text" className="border px-2 rounded-md" value={loggedInUser} onChange={(e) => setUserName(e.target.value)} />
+                </div>
             </div>
-            <div className="res-container">
+            <div className="flex flex-wrap">
                 {
                     listOfItems.map((restaurant) => (
-                        <Link key={restaurant.info.id} to={"/restaurants/"+restaurant.info.id}><ResCard resData={restaurant} /></Link>
+                        <Link key={restaurant.info.id} to={"/restaurants/"+restaurant.info.id}
+                        >
+                            {/* {restaurant.info.isOpen ? <ResCardOpened resData={restaurant} /> : <ResCard resData={restaurant} />} */}
+                            {restaurant.info.isOpen ? <ResCardOpened resData={restaurant} /> : <ResCardClosed resData={restaurant} />}
+                            
+                        </Link>
                     ))
                 }
             </div>
